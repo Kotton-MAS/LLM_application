@@ -1,3 +1,4 @@
+# スケジュールページの設定
 import streamlit as st
 from datetime import datetime, timedelta
 from database import SessionLocal, Schedule, add_schedule

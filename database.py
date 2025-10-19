@@ -38,7 +38,7 @@ class UsageLog(Base):
     cost = Column(Float, nullable=False)
     timestamp = Column(DateTime, default=datetime.now)
 
-# Database setup
+# DB の設定
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///llm_app.db')
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)

@@ -9,10 +9,10 @@ from usage_dashboard import show_usage_dashboard
 from schedule_page import show_schedule_page
 import json
 
-# Load environment variables
+# 環境変数の取得
 load_dotenv()
 
-# Initialize database
+# DBの初期化
 init_db()
 
 # Page config
@@ -22,7 +22,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Initialize Anthropic client
+# Anthropicクライアントの初期化
 @st.cache_resource
 def get_anthropic_client():
     api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -33,7 +33,7 @@ def get_anthropic_client():
 
 client = get_anthropic_client()
 
-# Initialize session state
+# セッション状態の初期化
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -43,7 +43,7 @@ if "current_avatar" not in st.session_state:
 if "current_page" not in st.session_state:
     st.session_state.current_page = "chat"
 
-# Sidebar
+# スライドバー設定
 with st.sidebar:
     st.title("🤖 Personal LLM Assistant")
     
@@ -77,7 +77,7 @@ with st.sidebar:
             key="avatar_selector"
         )
         
-        # Avatar change handling
+        # アバター変更ハンドリング設定
         if selected_avatar != st.session_state.current_avatar:
             st.session_state.current_avatar = selected_avatar
             # Load conversation history for selected avatar
@@ -88,7 +88,7 @@ with st.sidebar:
             ]
             st.rerun()
         
-        # Display current avatar info
+        # 現在表示されているアバターの状態
         current_config = get_avatar_config(st.session_state.current_avatar)
         st.markdown(f"### {current_config['icon']} {current_config['name']}")
         
@@ -116,36 +116,36 @@ with st.sidebar:
         
         st.divider()
         
-        # Clear chat button
+        # チャット履歴のクリア
         if st.button("🗑️ チャット履歴をクリア", type="secondary", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
 
-# Main content area
+# メイン部
 if st.session_state.current_page == "usage":
     show_usage_dashboard()
 
 elif st.session_state.current_page == "schedule":
     show_schedule_page()
 
-else:  # chat page
+else:  # チャットページ
     current_config = get_avatar_config(st.session_state.current_avatar)
     st.title(f"{current_config['icon']} {current_config['name']}")
     
-    # Display chat messages
+    # チャットメッセージの表示
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
     
-    # Chat input
+    # チャットメッセージ入力
     if prompt := st.chat_input("メッセージを入力..."):
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": prompt})
         
-        # Save to database
+        # DB への保存
         add_conversation(st.session_state.current_avatar, "user", prompt)
         
-        # Display user message
+        # ユーザーメッセージの表示
         with st.chat_message("user"):
             st.markdown(prompt)
         
@@ -174,7 +174,7 @@ else:  # chat page
                     response_text = f"スケジュールの解析に失敗しました。もう一度具体的に教えてください。\n例: 「明日の10時に会議を入れて」"
                     schedule_handled = True
         
-        # Generate assistant response
+        # アシスタントの返答生成
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             
@@ -187,7 +187,7 @@ else:  # chat page
                 full_response = ""
                 
                 try:
-                    # Prepare messages for API
+                    # API
                     api_messages = [{"role": m["role"], "content": m["content"]} 
                                   for m in st.session_state.messages]
                     
@@ -201,7 +201,7 @@ else:  # chat page
                                 schedule_context += f"- {s.scheduled_datetime.strftime('%m/%d %H:%M')}: {s.title}\n"
                             system_prompt += schedule_context
                     
-                    # Call Claude API with streaming
+                    # Claude API の呼び出し
                     with client.messages.stream(
                         model="claude-sonnet-4-20250514",
                         max_tokens=4096,
@@ -214,17 +214,17 @@ else:  # chat page
                     
                     message_placeholder.markdown(full_response)
                     
-                    # Get usage info
+                    # 使用情報の取得
                     message = stream.get_final_message()
                     input_tokens = message.usage.input_tokens
                     output_tokens = message.usage.output_tokens
                     
-                    # Calculate cost
+                    # コスト計算
                     input_cost = float(os.getenv("CLAUDE_SONNET_4_5_INPUT_COST", 3.0))
                     output_cost = float(os.getenv("CLAUDE_SONNET_4_5_OUTPUT_COST", 15.0))
                     total_cost = (input_tokens / 1_000_000 * input_cost) + (output_tokens / 1_000_000 * output_cost)
                     
-                    # Save usage log
+                    # 使用履歴の保存
                     add_usage_log(
                         st.session_state.current_avatar,
                         input_tokens,
@@ -237,10 +237,10 @@ else:  # chat page
                     full_response = "申し訳ございません。エラーが発生しました。"
                     message_placeholder.markdown(full_response)
         
-        # Add assistant response to chat history
+        # チャット履歴のアシスタントの返答の追加
         st.session_state.messages.append({"role": "assistant", "content": full_response})
         
-        # Save to database
+        # DB への保存
         add_conversation(st.session_state.current_avatar, "assistant", full_response)
         
         st.rerun()
